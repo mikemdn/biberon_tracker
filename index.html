@@ -597,9 +597,9 @@
       <div class="lbl">intervalle moyen (h)</div>
     </div>
     <div class="stat-card">
-      <div class="icon">📊</div>
+      <div class="icon">📅</div>
       <div class="val" id="s-avg">—</div>
-      <div class="lbl">ml / biberon moy.</div>
+      <div class="lbl">ml/jour moy. (7j)</div>
     </div>
   </div>
 
@@ -1038,9 +1038,15 @@ function render() {
   }
   document.getElementById('s-gap').textContent = avgGapH;
 
-  // Avg ml per bottle
-  const avgMl = onlyBottles.length ? Math.round(onlyBottles.reduce((s,b)=>s+b.ml,0)/onlyBottles.length) : '—';
-  document.getElementById('s-avg').textContent = avgMl;
+  // Moyenne journalière sur les 7 derniers jours complets (J-7 à J-1)
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = dayKey(yesterday);
+  const cutoff7 = new Date();
+  cutoff7.setDate(cutoff7.getDate() - 7);
+  const cutoff7Key = dayKey(cutoff7);
+  const rolling7ml = onlyBottles.filter(b => { const k = dayKey(b.dt); return k >= cutoff7Key && k <= yesterdayKey; }).reduce((s,b) => s+b.ml, 0);
+  document.getElementById('s-avg').textContent = onlyBottles.length ? Math.round(rolling7ml / 7) : '—';
 
   // Log
   const list = document.getElementById('logList');
