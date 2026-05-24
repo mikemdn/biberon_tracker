@@ -599,7 +599,7 @@
     <div class="stat-card">
       <div class="icon">📅</div>
       <div class="val" id="s-avg">—</div>
-      <div class="lbl">ml (7 jours)</div>
+      <div class="lbl">ml/jour moy. (7j)</div>
     </div>
   </div>
 
@@ -1038,12 +1038,15 @@ function render() {
   }
   document.getElementById('s-gap').textContent = avgGapH;
 
-  // Rolling 7-day ml sum
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-  const cutoff7 = dayKey(sevenDaysAgo);
-  const rolling7ml = onlyBottles.filter(b => dayKey(b.dt) >= cutoff7).reduce((s,b) => s+b.ml, 0);
-  document.getElementById('s-avg').textContent = onlyBottles.length ? rolling7ml : '—';
+  // Moyenne journalière sur les 7 derniers jours complets (J-7 à J-1)
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = dayKey(yesterday);
+  const cutoff7 = new Date();
+  cutoff7.setDate(cutoff7.getDate() - 7);
+  const cutoff7Key = dayKey(cutoff7);
+  const rolling7ml = onlyBottles.filter(b => { const k = dayKey(b.dt); return k >= cutoff7Key && k <= yesterdayKey; }).reduce((s,b) => s+b.ml, 0);
+  document.getElementById('s-avg').textContent = onlyBottles.length ? Math.round(rolling7ml / 7) : '—';
 
   // Log
   const list = document.getElementById('logList');
