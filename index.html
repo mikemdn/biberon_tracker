@@ -223,7 +223,19 @@
     border-radius: 22px;
     padding: 1.5rem;
     box-shadow: 0 4px 20px var(--shadow);
+    min-width: 0; /* empêche le grid de se dilater au-delà de sa colonne */
   }
+
+  .chart-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    cursor: grab;
+  }
+  .chart-scroll:active { cursor: grabbing; }
+  .chart-scroll::-webkit-scrollbar { height: 4px; }
+  .chart-scroll::-webkit-scrollbar-track { background: transparent; }
+  .chart-scroll::-webkit-scrollbar-thumb { background: rgba(158,128,128,0.25); border-radius: 4px; }
 
   .chart-header {
     display: flex;
@@ -625,19 +637,19 @@
           <button class="toggle-btn" id="btn-week" onclick="setView('week')">Par semaine</button>
         </div>
       </div>
-      <canvas id="chartDaily" height="200"></canvas>
+      <div class="chart-scroll"><canvas id="chartDaily" height="200"></canvas></div>
     </div>
     <div class="chart-card">
       <h3>🍼 Quantité moyenne par biberon (ml)</h3>
-      <canvas id="chartAvg" height="200"></canvas>
+      <div class="chart-scroll"><canvas id="chartAvg" height="200"></canvas></div>
     </div>
     <div class="chart-card">
       <h3>⚡ ML / heure moyen par jour</h3>
-      <canvas id="chartMlH" height="200"></canvas>
+      <div class="chart-scroll"><canvas id="chartMlH" height="200"></canvas></div>
     </div>
     <div class="chart-card">
       <h3>⏳ Intervalle moyen entre biberons (h)</h3>
-      <canvas id="chartGap" height="200"></canvas>
+      <div class="chart-scroll"><canvas id="chartGap" height="200"></canvas></div>
     </div>
   </div>
 
@@ -809,8 +821,24 @@ function setView(mode) {
 }
 
 function buildCharts(dayLabels, dayMl, dayAvg, dayMlH, dayGap) {
+  const PX_PER_POINT = 62;
+  const CHART_HEIGHT = 200;
+
+  // Calcule la largeur du canvas : min = largeur disponible dans la carte, sinon grandit avec les points
+  function sizeCanvas(id) {
+    const canvas = document.getElementById(id);
+    const scroll = canvas.parentElement; // .chart-scroll
+    const cardInner = scroll.parentElement.clientWidth - 48; // padding 1.5rem * 2
+    const w = Math.max(cardInner, dayLabels.length * PX_PER_POINT);
+    // On utilise setAttribute : Chart.js lit ces attributs HTML et gère seul le devicePixelRatio
+    canvas.setAttribute('width', w);
+    canvas.setAttribute('height', CHART_HEIGHT);
+  }
+  ['chartDaily', 'chartAvg', 'chartMlH', 'chartGap'].forEach(sizeCanvas);
+
   const base = {
-    responsive: true,
+    responsive: false,
+    maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: {} } },
     scales: {
       x: { grid: { display: false }, ticks: { font: { family: 'Nunito', weight: '700' }, color: '#9E8080' } },
@@ -935,6 +963,9 @@ function buildCharts(dayLabels, dayMl, dayAvg, dayMlH, dayGap) {
       }
     }
   });
+
+  // Positionne chaque graphique sur les données les plus récentes (tout à droite)
+  document.querySelectorAll('.chart-scroll').forEach(el => { el.scrollLeft = el.scrollWidth; });
 }
 
 // ─── Render ──────────────────────────────────────────────────────────────────
@@ -981,13 +1012,11 @@ function render() {
   let labels, recentMl, recentAvg, recentMlH, recentGap;
 
   if (viewMode === 'day') {
-    // Last 10 days
-    const recent = days.slice(-10);
-    recentMl = dayMl.slice(-10);
-    recentAvg = dayAvg.slice(-10);
-    recentMlH = dayMlH.slice(-10);
-    recentGap = dayGap.slice(-10);
-    labels = recent.map(d => new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }));
+    recentMl = dayMl;
+    recentAvg = dayAvg;
+    recentMlH = dayMlH;
+    recentGap = dayGap;
+    labels = days.map(d => new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }));
   } else {
     // Group by ISO week
     const byWeek = {};
@@ -1005,7 +1034,7 @@ function render() {
       byWeek[wk].count++;
       if (dayGap[i] != null) byWeek[wk].gaps.push(dayGap[i]);
     });
-    const weeks = Object.keys(byWeek).sort().slice(-10);
+    const weeks = Object.keys(byWeek).sort();
     recentMl = weeks.map(w => byWeek[w].ml);
     recentAvg = weeks.map(w => byWeek[w].bottles ? byWeek[w].ml / byWeek[w].bottles : null);
     recentMlH = weeks.map(w => { const vals = days.filter(d => { const date = new Date(d); const day = date.getDay(); const diff = (day === 0 ? -6 : 1 - day); const monday = new Date(date); monday.setDate(date.getDate() + diff); return monday.toISOString().slice(0,10) === w; }).map(d => dayMlH[days.indexOf(d)]).filter(v => v != null); return vals.length ? vals.reduce((s,v) => s+v, 0) / vals.length : null; });
