@@ -628,7 +628,7 @@
       <canvas id="chartDaily" height="200"></canvas>
     </div>
     <div class="chart-card">
-      <h3>📅 Somme ml sur 7 jours glissants</h3>
+      <h3>🍼 Quantité moyenne par biberon (ml)</h3>
       <canvas id="chartAvg" height="200"></canvas>
     </div>
     <div class="chart-card">
@@ -855,7 +855,7 @@ function buildCharts(dayLabels, dayMl, dayAvg, dayMlH, dayGap) {
     data: {
       labels: dayLabels,
       datasets: [{
-        data: dayAvg,
+        data: dayAvg.map(v => v != null ? Math.round(v) : null),
         borderColor: '#8EC5B0',
         backgroundColor: 'rgba(142,197,176,0.12)',
         borderWidth: 3,
@@ -952,15 +952,9 @@ function render() {
 
   const days = Object.keys(byDay).sort();
   const dayMl = days.map(d => byDay[d].reduce((s,b) => s+b.ml, 0));
-  const dayRolling7 = days.map((d, i) => {
-    const cutoff = new Date(d);
-    cutoff.setDate(cutoff.getDate() - 6);
-    const cutoffStr = dayKey(cutoff);
-    let sum = 0;
-    for (let j = 0; j <= i; j++) {
-      if (days[j] >= cutoffStr) sum += dayMl[j];
-    }
-    return sum;
+  const dayAvg = days.map(d => {
+    const bs = byDay[d];
+    return bs.length ? bs.reduce((s,b) => s+b.ml, 0) / bs.length : null;
   });
 
   // ML/hour per day
@@ -990,7 +984,7 @@ function render() {
     // Last 10 days
     const recent = days.slice(-10);
     recentMl = dayMl.slice(-10);
-    recentAvg = dayRolling7.slice(-10);
+    recentAvg = dayAvg.slice(-10);
     recentMlH = dayMlH.slice(-10);
     recentGap = dayGap.slice(-10);
     labels = recent.map(d => new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }));
@@ -1013,7 +1007,7 @@ function render() {
     });
     const weeks = Object.keys(byWeek).sort().slice(-10);
     recentMl = weeks.map(w => byWeek[w].ml);
-    recentAvg = weeks.map(w => byWeek[w].ml);
+    recentAvg = weeks.map(w => byWeek[w].bottles ? byWeek[w].ml / byWeek[w].bottles : null);
     recentMlH = weeks.map(w => { const vals = days.filter(d => { const date = new Date(d); const day = date.getDay(); const diff = (day === 0 ? -6 : 1 - day); const monday = new Date(date); monday.setDate(date.getDate() + diff); return monday.toISOString().slice(0,10) === w; }).map(d => dayMlH[days.indexOf(d)]).filter(v => v != null); return vals.length ? vals.reduce((s,v) => s+v, 0) / vals.length : null; });
     recentGap = weeks.map(w => byWeek[w].gaps.length ? byWeek[w].gaps.reduce((s,g)=>s+g,0)/byWeek[w].gaps.length : null);
     labels = weeks.map(w => {
