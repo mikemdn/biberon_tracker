@@ -223,6 +223,7 @@
     border-radius: 22px;
     padding: 1.5rem;
     box-shadow: 0 4px 20px var(--shadow);
+    min-width: 0; /* empêche le grid de se dilater au-delà de sa colonne */
   }
 
   .chart-scroll {
@@ -823,18 +824,17 @@ function buildCharts(dayLabels, dayMl, dayAvg, dayMlH, dayGap) {
   const PX_PER_POINT = 62;
   const CHART_HEIGHT = 200;
 
+  // Calcule la largeur du canvas : min = largeur disponible dans la carte, sinon grandit avec les points
   function sizeCanvas(id) {
     const canvas = document.getElementById(id);
-    const scroll = canvas.parentElement;
-    const cardWidth = scroll.parentElement.clientWidth - 48; // minus card padding
-    const w = Math.max(cardWidth, dayLabels.length * PX_PER_POINT);
-    canvas.style.width = w + 'px';
-    canvas.style.height = CHART_HEIGHT + 'px';
-    canvas.width = w * (window.devicePixelRatio || 1);
-    canvas.height = CHART_HEIGHT * (window.devicePixelRatio || 1);
+    const scroll = canvas.parentElement; // .chart-scroll
+    const cardInner = scroll.parentElement.clientWidth - 48; // padding 1.5rem * 2
+    const w = Math.max(cardInner, dayLabels.length * PX_PER_POINT);
+    // On utilise setAttribute : Chart.js lit ces attributs HTML et gère seul le devicePixelRatio
+    canvas.setAttribute('width', w);
+    canvas.setAttribute('height', CHART_HEIGHT);
   }
-
-  ['chartDaily','chartAvg','chartMlH','chartGap'].forEach(sizeCanvas);
+  ['chartDaily', 'chartAvg', 'chartMlH', 'chartGap'].forEach(sizeCanvas);
 
   const base = {
     responsive: false,
@@ -964,7 +964,7 @@ function buildCharts(dayLabels, dayMl, dayAvg, dayMlH, dayGap) {
     }
   });
 
-  // Scroll all chart containers to the right (most recent data)
+  // Positionne chaque graphique sur les données les plus récentes (tout à droite)
   document.querySelectorAll('.chart-scroll').forEach(el => { el.scrollLeft = el.scrollWidth; });
 }
 
